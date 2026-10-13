@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: Chunked Video Export Pipeline
+  version: 1.0.0
+paths:
+  /healthz:
+    get:
+      summary: Health check (no auth)
+      responses:
+        '200':
+          description: ok
+  /files/:
+    post:
+      summary: tus resumable upload endpoint (X-API-Key required)
+      description: tus protocol; client sends Upload-Length, Upload-Metadata. Resume via HEAD/PATCH.
+      responses:
+        '201':
+          description: created
+  /assets/{id}:
+    get:
+      summary: Get asset state
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: asset
+  /exports:
+    post:
+      summary: Create export (enqueues planner job)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [asset_id]
+              properties:
+                asset_id: {type: string, format: uuid}
+                chunk_seconds: {type: integer, default: 10}
+      responses:
+        '201':
+          description: created
+  /exports/{id}:
+    get:
+      summary: Export state with per-chunk status + percent
+      responses:
+        '200':
+          description: export state
+  /exports/{id}/events:
+    get:
+      summary: SSE stream of chunk/progress events, resumable via Last-Event-ID
+      responses:
+        '200':
+          description: text/event-stream
+  /exports/{id}/download:
+    get:
+      summary: Authenticated download of final output
+      responses:
+        '200':
+          description: binary
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code: {type: string}
+        message: {type: string}
+        request_id: {type: string}

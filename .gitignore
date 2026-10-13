@@ -1,0 +1,12 @@
+.env
+data/
+bin/
+*.tmp
+*.log
+uploads/
+coverage.out
+.DS_Store
+.cache/
+testdata/
+chaos.log
+chaos.err.log
