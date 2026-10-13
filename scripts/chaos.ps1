@@ -19,9 +19,17 @@ if (-not $AssetId) {
 }
 Write-Output "asset=$AssetId rounds=$Rounds runs=$Runs"
 
-function Wait-Export($id, $timeoutS=900) {
+function Ensure-Workers {
+  # docker kill relies on compose restart, but if the daemon hiccups a killed
+  # worker can stay Exited(137); starting it is equivalent to the restart.
+  $exited = @(docker ps -a --filter "name=pipe-worker" --filter "status=exited" --format "{{.ID}}")
+  foreach ($c in $exited) { if ($c) { docker start $c | Out-Null } }
+}
+
+function Wait-Export($id, $timeoutS=1200) {
   $t=0
   while ($t -lt $timeoutS) {
+    if ($t % 30 -eq 0) { Ensure-Workers }
     $e = Invoke-RestMethod -Uri "$Api/exports/$id" -Headers @{"X-API-Key"=$Key}
     if ($e.status -eq "done") { return $e }
     if ($e.status -eq "failed") { throw "export $id failed" }
@@ -38,6 +46,7 @@ for ($run=1; $run -le $Runs; $run++) {
   $id = $exp.id
   Start-Sleep 8  # let chunks start running, then kill mid-chunk
   for ($k=1; $k -le $Rounds; $k++) {
+    Ensure-Workers
     $workers = @(docker compose ps -q worker)
     if ($workers.Count -gt 0) {
       $pick = $workers | Get-Random
